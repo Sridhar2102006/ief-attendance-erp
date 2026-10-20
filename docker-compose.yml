@@ -1,0 +1,55 @@
+# Application containers on ief-network should use these internal addresses:
+# PostgreSQL: postgres:5432
+# Redis: redis:6379
+# Mailpit SMTP: mailpit:1025
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    networks:
+      - ief-network
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ief_attendance}
+      POSTGRES_USER: ${POSTGRES_USER:-ief}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ief_local_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    networks:
+      - ief-network
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    networks:
+      - ief-network
+    ports:
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  ief-network:
+    name: ief-network
+    driver: bridge
